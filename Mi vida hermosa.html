@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nuestro Universo ❤️</title>
+<style>
+
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    font-family: 'Lato', sans-serif;
+    cursor: grab;
+    user-select: none;
+  }
+  body.dragging { cursor: grabbing; }
+
+  #canvas-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  #scene {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    transform-origin: center center;
+  }
+
+  /* ── ÓRBITAS ── */
+  .orbit-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(255,150,200,0.15);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  /* ── CORAZÓN CENTRAL ── */
+  #heart-center {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    z-index: 10;
+  }
+  #heart-center .glow-heart {
+    font-size: 120px;
+    line-height: 1;
+    animation: heartbeat 1.8s ease-in-out infinite;
+    filter: drop-shadow(0 0 30px #ff4da6) drop-shadow(0 0 80px #ff4da6);
+    display: block;
+  }
+  #heart-center .title-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-style: italic;
+    color: #ffb3d9;
+    text-shadow: 0 0 20px #ff4da6;
+    margin-top: 8px;
+    letter-spacing: 4px;
+  }
+  @keyframes heartbeat {
+    0%, 100% { transform: scale(1); }
+    15% { transform: scale(1.15); }
+    30% { transform: scale(1); }
+    45% { transform: scale(1.08); }
+    60% { transform: scale(1); }
+  }
+
+  /* ── PLANETAS ── */
+  .planet-wrapper {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    z-index: 20;
+  }
+  .planet {
+    border-radius: 50%;
+    transition: transform 0.3s ease, filter 0.3s ease;
+    box-shadow: 0 0 30px rgba(255,255,255,0.2);
+  }
+  .planet-wrapper:hover .planet {
+    transform: scale(1.2);
+    filter: brightness(1.3);
+  }
+  .planet-wrapper.visited .planet::after {
+    content: '✓';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.5em;
+    font-weight: bold;
+    text-shadow: 0 0 6px rgba(0,0,0,0.8);
+  }
+  .planet-label {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.85);
+    font-size: 13px;
+    white-space: nowrap;
+    text-shadow: 0 0 8px rgba(255,100,180,0.8);
+    letter-spacing: 1px;
+    pointer-events: none;
+  }
+  .planet-wrapper.visited .planet-label {
+    color: #ff9ed5;
+  }
+
+  /* ── NEBULOSAS ── */
+  .nebula {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.18;
+    pointer-events: none;
+    animation: nebula-pulse 8s ease-in-out infinite;
+  }
+  @keyframes nebula-pulse {
+    0%, 100% { opacity: 0.18; transform: scale(1); }
+    50% { opacity: 0.28; transform: scale(1.05); }
+  }
+
+  /* ── ESTRELLAS FUGACES ── */
+  .shooting-star {
+    position: absolute;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(255,255,255,0), #fff, rgba(255,255,255,0));
+    border-radius: 100px;
+    pointer-events: none;
+    animation: shoot linear forwards;
+    opacity: 0;
+  }
+  @keyframes shoot {
+    0% { opacity: 1; transform: translateX(0) translateY(0); }
+    100% { opacity: 0; transform: translateX(300px) translateY(80px); }
+  }
+
+  /* ── UI BOTONES ── */
+  #btn-home {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    background: linear-gradient(135deg, #ff4da6, #c2185b);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 22px;
+    font-size: 15px;
+    font-family: 'Lato', sans-serif;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(255,77,166,0.5);
+    transition: transform 0.2s, box-shadow 0.2s;
+    letter-spacing: 1px;
+  }
+  #btn-home:hover { transform: scale(1.05); box-shadow: 0 0 35px rgba(255,77,166,0.7); }
+
+  #visit-counter {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    color: rgba(255,200,230,0.7);
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px #ff4da6;
+    pointer-events: none;
+  }
+
+  /* ── MODAL ── */
+  #modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(6px);
+    z-index: 99999;
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 0.3s ease;
+  }
+  #modal-overlay.open { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .modal-card {
+    background: linear-gradient(160deg, #1a0a12, #0d0a1a);
+    border: 1px solid rgba(255,77,166,0.4);
+    border-radius: 20px;
+    padding: 28px 28px;
+    max-width: min(92vw, 560px);
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(255,77,166,0.25), inset 0 0 60px rgba(255,77,166,0.04);
+    animation: slideUp 0.35s cubic-bezier(.22,1,.36,1);
+    position: relative;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(40px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .modal-icon { font-size: 52px; margin-bottom: 16px; display: block; }
+  .modal-photo {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 80%;
+    border: 3px solid rgba(255, 158, 213, 0.8);
+    box-shadow: 0 0 30px rgba(255, 77, 166, 0.45);
+    display: block;
+    margin: 0 auto;
+    }
+  .modal-card h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    color: #ff9ed5;
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+  }
+  .modal-card p {
+    color: rgba(255,255,255,0.75);
+    font-size: 15px;
+    line-height: 1.8;
+    font-weight: 300;
+  }
+  .photo-carousel {
+  margin-top: 14px;
+  width: 100%;
+}
+
+.photo-frame {
+  position: relative;
+  width: min(100%, 340px);
+  height: 380px;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 158, 213, 0.45);
+  box-shadow: 0 0 35px rgba(255, 77, 166, 0.25);
+  background: rgba(255,255,255,0.04);
+}
+
+.photo-track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.35s ease;
+}
+
+.photo-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  z-index: 2;
+  box-shadow: 0 0 18px rgba(255,77,166,0.35);
+}
+
+.carousel-btn.prev {
+  left: 10px;
+}
+
+.carousel-btn.next {
+  right: 10px;
+}
+
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.25);
+}
+
+.carousel-dot.active {
+  background: #ff4da6;
+  box-shadow: 0 0 10px rgba(255,77,166,0.8);
+}
+  .modal-close {
+    margin-top: 28px;
+    padding: 11px 28px;
+    background: linear-gradient(135deg, #ff4da6, #c2185b);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    font-size: 14px;
+    font-family: 'Lato', sans-serif;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 0 20px rgba(255,77,166,0.4);
+  }
+  .modal-close:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,77,166,0.6); }
+
+  /* ── MENSAJE SECRETO ── */
+  #secret-msg {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, #1a003a, #000);
+    z-index: 999999;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+    padding: 40px;
+    animation: fadeIn 1s ease;
+  }
+  #secret-msg.open { display: flex; }
+  #secret-msg .secret-hearts {
+    font-size: 60px;
+    animation: heartbeat 2s infinite;
+    margin-bottom: 20px;
+  }
+  #secret-msg h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(28px, 5vw, 52px);
+    color: #ff9ed5;
+    text-shadow: 0 0 40px #ff4da6;
+    margin-bottom: 20px;
+  }
+  #secret-msg p {
+    color: rgba(255,200,230,0.85);
+    font-size: clamp(14px, 2vw, 18px);
+    max-width: 500px;
+    line-height: 1.9;
+    font-weight: 300;
+  }
+  #secret-msg button {
+    margin-top: 36px;
+    padding: 13px 34px;
+    background: linear-gradient(135deg, #ff4da6, #c2185b);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    font-size: 15px;
+    cursor: pointer;
+    font-family: 'Lato', sans-serif;
+    letter-spacing: 1px;
+    box-shadow: 0 0 30px rgba(255,77,166,0.6);
+  }
+
+
+  @media (max-height: 760px) {
+  .modal-card {
+    padding: 22px 24px;
+    max-height: 94vh;
+    overflow-y: auto;
+  }
+
+  .modal-icon {
+    font-size: 42px;
+    margin-bottom: 8px;
+  }
+
+  .modal-card h2 {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+
+  .modal-card p {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .photo-frame {
+    width: min(100%, 310px);
+    height: 330px;
+  }
+
+  .modal-close {
+    margin-top: 18px;
+  }
+}
+</style>
+</head>
+<body>
+<!-- Audios: coloca estos archivos MP3 en la misma carpeta que tu HTML -->
+<audio id="bg-music" src="videoplayback2.m4a" loop preload="auto"></audio>
+<audio id="planet-music" src="videoplayback2.m4a" preload="auto"></audio>
+<!-- Canvas para estrellas de fondo -->
+<canvas id="canvas-bg"></canvas>
+
+<!-- Escena del universo -->
+<div id="scene">
+  <!-- Las nebulosas, órbitas, planetas y corazón se inyectan por JS -->
+</div>
+
+<!-- UI fija -->
+<div id="visit-counter">✨ Planetas visitados: <span id="count">0</span> / 7</div>
+<button id="btn-home">❤️ Volver al centro</button>
+
+<!-- Modal -->
+<div id="modal-overlay">
+  <div class="modal-card">
+    <span class="modal-icon" id="modal-icon"></span>
+    <h2 id="modal-title"></h2>
+    <p id="modal-text"></p>
+    <button class="modal-close" onclick="closeModal()">Cerrar con amor ❤️</button>
+  </div>
+</div>
+
+<!-- Mensaje secreto final -->
+<div id="secret-msg">
+  <div class="secret-hearts">❤️✨❤️</div>
+  <h1>¡Lo exploraste todo!</h1>
+  <p>
+    Así como recorriste cada rincón de este universo,<br>
+    tú recorres cada rincón de mi corazón.<br><br>
+    <em>Te amo más que todas las estrellas de esta galaxia juntas mi casita en el aire.</em><br><br>
+
+  </p>
+  <button onclick="document.getElementById('secret-msg').classList.remove('open')">Regresar al universo 🚀</button>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  CONFIGURACIÓN
+// ─────────────────────────────────────────────
+const WORLD_W = 3000;
+const WORLD_H = 3000;
+const CX = WORLD_W / 2;
+const CY = WORLD_H / 2;
+
+const PLANETS = [
+  {
+    id: 'conocimos',
+    emoji: '🪐',
+    label: 'Cómo nos conocimos',
+    orbit: 340,
+    size: 64,
+    speed: 0.00018,
+    startAngle: 0,
+    gradient: ['#ffd1dc', '#ff4fa3', '#7b1fa2'],
+    modalIcon: '🪐',
+    modalTitle: 'Cómo nos conocimos',
+    modalText: `
+  Aquí comenzó nuestra historia, en un día de trabajo, cuando te vi por primera vez
+  y sentí algo especial por ti. Recuerdo ese momento en que te presté mis guantes,
+  algo tan simple, pero que para mí se quedó guardado como el inicio de algo hermoso.<br><br>
+
+  También recuerdo cuando te molestaba tanto que terminaste pegándome, por así decirlo,
+  y aun así cada momento contigo se volvía especial. Recuerdo aquella vez en que,
+  después de insistirte una y otra vez, aceptaste que te llevara a tu casa.
+  Para mí fue uno de esos pequeños momentos que nunca se olvidan.<br><br>
+
+  Recuerdo también aquella madrugada en la playa, esa noche en la que me dijiste
+  que te gustaba y yo te confesé que sentía lo mismo por ti. Fue ahí donde me animé
+  a pedirte que fueras mi novia, y desde entonces mi vida cambió de una forma hermosa.<br><br>
+
+  Recuerdo cada momento que hemos vivido, cada risa, cada locura, cada detalle.
+  Eres mi amor bonito, lo mejor que me ha pasado en la vida.
+  Eres mi todo, mi casita en el aire, mi lugar favorito.<br><br>
+
+  Te amo con todo mi corazón.
+`
+ },
+{
+  id: 'mensaje',
+  emoji: '🌙',
+  label: 'Nuestra boda',
+  orbit: 220,
+  size: 44,
+  speed: 0.00028,
+  startAngle: Math.PI * 0.6,
+  gradient: ['#ffffff', '#c0c0c0', '#555'],
+  modalIcon: '🌙',
+  modalTitle: 'Nuestra boda',
+  modalText: 'Un recuerdo hermoso de nuestra boda simbolica.',
+  photos: [
+    'boda1.jpg',
+    'boda2.jpg',
+    'boda3.jpg',
+    'boda4.jpg',
+    'boda5.jpg',
+    'boda6.jpg',
+  ]
+},
+  {
+    id: 'amor',
+    emoji: '💖',
+    label: 'Nuestro Amor',
+    orbit: 460,
+    size: 76,
+    speed: 0.00013,
+    startAngle: Math.PI * 1.2,
+    gradient: ['#ff99cc', '#ff0066', '#990033'],
+    modalIcon: '💖',
+    modalTitle: 'Nuestro Amor',
+    modalText: 'Todo lo que te hace especial para mí. Las cosas que admiro de ti, lo que me enamora cada día más...'
+  },
+    {
+    id: 'fotos',
+    emoji: '📸',
+    label: 'Fotos',
+    orbit: 560,
+    size: 60,
+    speed: 0.0001,
+    startAngle: Math.PI * 0.3,
+    gradient: ['#80d8ff', '#0091ea', '#01579b'],
+    modalIcon: '📸',
+    modalTitle: 'Nuestras Fotos',
+    modalText: 'Cada foto es un recuerdo que guardo en el corazón.',
+    photos: [
+        'foto1.jpg',
+        'foto2.jpg',
+        'foto3.jpg',
+        'foto4.jpg',
+        'foto5.jpg',
+        'foto6.jpg',
+        'foto7.jpg',
+        'foto8.jpg',
+        'foto9.jpg',
+        'foto10.jpg',
+        'foto11.jpg',
+        'foto12.jpg',
+        'foto13.jpg',
+        'foto14.jpg',
+        'foto15.jpg',
+        'foto16.jpg',
+        'foto17.jpg',
+        'foto18.jpg',        
+        ]
+    },
+  {
+    id: 'musica',
+    emoji: '🎵',
+    label: 'Nuestra Música',
+    orbit: 650,
+    size: 58,
+    speed: 0.00009,
+    startAngle: Math.PI * 0.9,
+    gradient: ['#c5e1a5', '#8bc34a', '#33691e'],
+    modalIcon: '<img src="nosotros.jpg" class="modal-photo" alt="Nuestra Música">',
+    modalTitle: 'Casita en el aire',
+    modalText: 'Nuestra canción. Esa que siempre me hace pensar en ti y en todo lo bonito que estamos construyendo.'
+  },
+{
+  id: 'cartas',
+  emoji: '💌',
+  label: 'Cartas',
+  orbit: 760,
+  size: 62,
+  speed: 0.000075,
+  startAngle: Math.PI * 1.7,
+  gradient: ['#ffe082', '#ffb300', '#e65100'],
+  modalIcon: '💌',
+  modalTitle: 'Una carta para ti',
+  modalText: `
+    Amor mío,<br><br>
+    A veces siento que las palabras se quedan pequeñas para todo lo que significas en mi vida.
+    Llegaste como una luz bonita, de esas que no hacen ruido, pero lo cambian todo.
+    Desde que estás conmigo, los días tienen otro color, las canciones tienen otro sentido
+    y hasta los momentos simples se vuelven recuerdos que quiero guardar para siempre.<br><br>
+
+    Gracias por tu forma de mirarme, por tu risa, por tu paciencia, por existir de esa manera tan tuya
+    que hace que mi corazón se sienta en casa.<br><br>
+
+    Si pudiera pedirle algo al universo, sería seguir caminando contigo,
+    aprender contigo, reír contigo y construir una vida donde nunca falte amor, Una vida en la que tu y so seamos uno.<br><br>
+
+    Con todo mi corazón,<br>
+    <em>para ti mi amor bonito mi casita en el aire.</em>
+  `
+},
+{
+  id: 'futuro',
+  emoji: '🚀',
+  label: 'Nuestro Futuro',
+  orbit: 880,
+  size: 80,
+  speed: 0.00006,
+  startAngle: Math.PI * 1.1,
+  gradient: ['#e1bee7', '#9c27b0', '#311b92'],
+  modalIcon: '🚀',
+  modalTitle: 'Nuestro Futuro',
+  modalText: `
+    Cuando pienso en el futuro, no imagino algo perfecto.
+    Imagino algo nuestro.<br><br>
+
+    Imagino días tranquilos, abrazos después de un día largo,
+    risas por cosas simples, planes que tal vez cambien,
+    pero siempre con la certeza de que estamos juntos.<br><br>
+
+    Quiero construir contigo una historia llena de amor, y momentos que valgan la pena recordar.<br><br>
+
+    <strong>Sueños que quiero vivir contigo:</strong><br>
+    ✨ Tener nuestro propio hogar<br>
+    ✨ Tener nuestra propia famila con Marianita y Richi nuestros futuros hijos<br>
+    ✨ Viajar juntos por todo el pais <br>
+    ✨ Viajar al extranjero a conocer lugares bonitos<br>
+    ✨ Cuidarnos en los días buenos y en los difíciles como lo hacemos<br>
+    ✨ Seguir eligiéndonos, una y otra vez<br>
+  `
+}
+];
+
+// ─────────────────────────────────────────────
+//  ESTADO
+// ─────────────────────────────────────────────
+let visited = new Set();
+const TOTAL = PLANETS.length;
+let scale = 0.38;
+let currentPhotoIndex = 0;
+let currentPhotos = [];
+
+function createPhotoCarousel(photos) {
+  currentPhotoIndex = 0;
+  currentPhotos = photos;
+
+  const slides = photos.map(photo => `
+    <img class="photo-slide" src="${photo}" alt="Foto especial">
+  `).join('');
+
+  const dots = photos.map((_, index) => `
+    <span class="carousel-dot ${index === 0 ? 'active' : ''}"></span>
+  `).join('');
+
+  return `
+    <div class="photo-carousel">
+      <div class="photo-frame">
+        <button class="carousel-btn prev" onclick="changePhoto(-1)">‹</button>
+        <div class="photo-track" id="photo-track">
+          ${slides}
+        </div>
+        <button class="carousel-btn next" onclick="changePhoto(1)">›</button>
+      </div>
+      <div class="carousel-dots" id="carousel-dots">
+        ${dots}
+      </div>
+    </div>
+  `;
+}
+
+function changePhoto(direction) {
+  if (!currentPhotos.length) return;
+
+  currentPhotoIndex += direction;
+
+  if (currentPhotoIndex < 0) {
+    currentPhotoIndex = currentPhotos.length - 1;
+  }
+
+  if (currentPhotoIndex >= currentPhotos.length) {
+    currentPhotoIndex = 0;
+  }
+
+  document.getElementById('photo-track').style.transform = `translateX(-${currentPhotoIndex * 100}%)`;
+
+  document.querySelectorAll('.carousel-dot').forEach((dot, index) => {
+    dot.classList.toggle('active', index === currentPhotoIndex);
+  });
+}
+let offsetX = 0, offsetY = 0;
+let isDragging = false, lastX = 0, lastY = 0;
+let angles = PLANETS.map(p => p.startAngle);
+let animFrame;
+
+let currentPlanetId = null;
+
+const bgMusic = document.getElementById('bg-music');
+const planetMusic = document.getElementById('planet-music');
+
+bgMusic.volume = 0.20;      // volumen bajo de fondo
+planetMusic.volume = 0.9;   // volumen de la canción del planeta
+
+function startBackgroundMusic() {
+  bgMusic.play().catch(() => {});
+}
+
+function playPlanetMusic() {
+  bgMusic.volume = 0.08; // baja más la música de fondo
+  planetMusic.currentTime = 0;
+  planetMusic.play().catch(() => {});
+}
+
+function stopPlanetMusic() {
+  planetMusic.pause();
+  planetMusic.currentTime = 0;
+  bgMusic.volume = 0.16; // vuelve al volumen normal bajo
+}
+// ─────────────────────────────────────────────
+//  CANVAS DE ESTRELLAS (fijo, no se mueve)
+// ─────────────────────────────────────────────
+const canvas = document.getElementById('canvas-bg');
+const ctx = canvas.getContext('2d');
+let stars = [];
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+
+function generateStars() {
+  stars = [];
+  for (let i = 0; i < 600; i++) {
+    stars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.5 + 0.3,
+      alpha: Math.random() * 0.7 + 0.3,
+      twinkleSpeed: Math.random() * 0.02 + 0.005,
+      twinkleDir: Math.random() > 0.5 ? 1 : -1
+    });
+  }
+}
+
+function drawStars(t) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const s of stars) {
+    s.alpha += s.twinkleSpeed * s.twinkleDir;
+    if (s.alpha > 1 || s.alpha < 0.1) s.twinkleDir *= -1;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${s.alpha})`;
+    ctx.fill();
+  }
+}
+
+// ─────────────────────────────────────────────
+//  CONSTRUCCIÓN DE LA ESCENA
+// ─────────────────────────────────────────────
+const scene = document.getElementById('scene');
+
+function buildScene() {
+  // Nebulosas de fondo (en el scene, se mueven con el mundo)
+  const nebulas = [
+    { x: CX - 600, y: CY - 400, w: 700, h: 700, color: '#ff00aa' },
+    { x: CX + 400, y: CY + 300, w: 900, h: 900, color: '#0044ff' },
+    { x: CX - 200, y: CY + 500, w: 600, h: 600, color: '#aa00ff' },
+    { x: CX + 200, y: CY - 500, w: 500, h: 500, color: '#ff4400' },
+  ];
+  nebulas.forEach(n => {
+    const el = document.createElement('div');
+    el.className = 'nebula';
+    el.style.cssText = `width:${n.w}px;height:${n.h}px;left:${n.x}px;top:${n.y}px;background:${n.color};`;
+    el.style.transform = 'translate(-50%,-50%)';
+    scene.appendChild(el);
+  });
+
+  // Órbitas
+  PLANETS.forEach(p => {
+    const ring = document.createElement('div');
+    ring.className = 'orbit-ring';
+    ring.style.cssText = `
+      width:${p.orbit * 2}px;
+      height:${p.orbit * 2}px;
+      left:${CX}px;
+      top:${CY}px;
+    `;
+    // Órbita levemente elíptica para 3 planetas
+    if (p.orbit > 500) {
+      ring.style.transform = `translate(-50%, -50%) scaleY(0.6)`;
+    }
+    scene.appendChild(ring);
+  });
+
+  // Corazón central
+  const heart = document.createElement('div');
+  heart.id = 'heart-center';
+  heart.style.left = CX + 'px';
+  heart.style.top = CY + 'px';
+  heart.innerHTML = `
+    <span class="glow-heart">❤️</span>
+    <div class="title-text">TE AMO</div>
+  `;
+  scene.appendChild(heart);
+
+  // Planetas
+  PLANETS.forEach((p, i) => {
+    const grad = `radial-gradient(circle at 35% 35%, ${p.gradient[0]}, ${p.gradient[1]}, ${p.gradient[2]})`;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'planet-wrapper';
+    wrapper.id = 'planet-' + p.id;
+    wrapper.style.left = CX + 'px';
+    wrapper.style.top = CY + 'px';
+    wrapper.innerHTML = `
+      <div class="planet" style="width:${p.size}px;height:${p.size}px;background:${grad};"></div>
+      <div class="planet-label">${p.emoji} ${p.label}</div>
+    `;
+    wrapper.addEventListener('click', () => openModal(i));
+    scene.appendChild(wrapper);
+  });
+}
+
+// ─────────────────────────────────────────────
+//  MODAL
+// ─────────────────────────────────────────────
+function openModal(i) {
+  const p = PLANETS[i];
+  currentPlanetId = p.id;
+
+document.getElementById('modal-icon').innerHTML = p.modalIcon;
+document.getElementById('modal-title').textContent = p.modalTitle;
+if (p.photos) {
+  document.getElementById('modal-text').innerHTML = p.modalText + createPhotoCarousel(p.photos);
+} else {
+  document.getElementById('modal-text').innerHTML = p.modalText;
+}
+
+document.getElementById('modal-overlay').classList.add('open');
+
+  if (p.id === 'musica') {
+    playPlanetMusic();
+  } else {
+    stopPlanetMusic();
+  }
+
+  // Marcar como visitado
+  if (!visited.has(p.id)) {
+    visited.add(p.id);
+    document.getElementById('planet-' + p.id).classList.add('visited');
+    updateCounter();
+  }
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+
+  if (currentPlanetId === 'musica') {
+    stopPlanetMusic();
+  }
+
+  currentPlanetId = null;
+
+  if (visited.size === TOTAL) {
+    setTimeout(() => {
+      document.getElementById('secret-msg').classList.add('open');
+    }, 500);
+  }
+}
+function updateCounter() {
+  document.getElementById('count').textContent = visited.size;
+}
+
+// ─────────────────────────────────────────────
+//  TRANSFORMACIÓN DE LA ESCENA
+// ─────────────────────────────────────────────
+function applyTransform() {
+  const vw = window.innerWidth / 2;
+  const vh = window.innerHeight / 2;
+  const tx = vw - CX * scale + offsetX;
+  const ty = vh - CY * scale + offsetY;
+  scene.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+  scene.style.transformOrigin = '0 0';
+}
+
+function goHome() {
+  offsetX = 0; offsetY = 0; scale = 0.38;
+  applyTransform();
+}
+
+// ─────────────────────────────────────────────
+//  ANIMACIÓN DE ÓRBITAS
+// ─────────────────────────────────────────────
+let lastTime = 0;
+function animateOrbits(ts) {
+  const dt = ts - lastTime;
+  lastTime = ts;
+
+  PLANETS.forEach((p, i) => {
+    angles[i] += p.speed * dt;
+    const orbitH = p.orbit > 500 ? p.orbit * 0.6 : p.orbit;
+    const x = CX + p.orbit * Math.cos(angles[i]);
+    const y = CY + orbitH * Math.sin(angles[i]);
+    const el = document.getElementById('planet-' + p.id);
+    if (el) {
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+    }
+  });
+
+  drawStars(ts);
+  animFrame = requestAnimationFrame(animateOrbits);
+}
+
+// ─────────────────────────────────────────────
+//  ESTRELLAS FUGACES
+// ─────────────────────────────────────────────
+function spawnShootingStar() {
+  const star = document.createElement('div');
+  star.className = 'shooting-star';
+  const len = 80 + Math.random() * 200;
+  star.style.width = len + 'px';
+  star.style.left = Math.random() * window.innerWidth + 'px';
+  star.style.top = Math.random() * window.innerHeight * 0.6 + 'px';
+  star.style.transform = `rotate(${15 + Math.random() * 20}deg)`;
+  const dur = 0.6 + Math.random() * 0.8;
+  star.style.animation = `shoot ${dur}s linear forwards`;
+  document.body.appendChild(star);
+  setTimeout(() => star.remove(), dur * 1000 + 100);
+}
+setInterval(spawnShootingStar, 3500);
+
+// ─────────────────────────────────────────────
+//  ARRASTRE (MOUSE + TOUCH)
+// ─────────────────────────────────────────────
+document.addEventListener('mousedown', e => {
+  if (e.target.closest('#modal-overlay, #secret-msg, #btn-home, .planet-wrapper')) return;
+  isDragging = true;
+  lastX = e.clientX; lastY = e.clientY;
+  document.body.classList.add('dragging');
+});
+document.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  offsetX += e.clientX - lastX;
+  offsetY += e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  applyTransform();
+});
+document.addEventListener('mouseup', () => {
+  isDragging = false;
+  document.body.classList.remove('dragging');
+});
+
+// Zoom con rueda
+document.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? 0.92 : 1.09;
+  scale = Math.max(0.1, Math.min(scale * factor, 4));
+  applyTransform();
+}, { passive: false });
+
+// Touch: arrastre y pinch-zoom
+let lastTouches = null;
+document.addEventListener('touchstart', e => {
+  lastTouches = e.touches;
+  isDragging = true;
+}, { passive: true });
+document.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length === 1 && lastTouches?.length === 1) {
+    offsetX += e.touches[0].clientX - lastTouches[0].clientX;
+    offsetY += e.touches[0].clientY - lastTouches[0].clientY;
+    applyTransform();
+  } else if (e.touches.length === 2 && lastTouches?.length === 2) {
+    const prevDist = Math.hypot(lastTouches[0].clientX - lastTouches[1].clientX, lastTouches[0].clientY - lastTouches[1].clientY);
+    const newDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    const factor = newDist / prevDist;
+    scale = Math.max(0.1, Math.min(scale * factor, 4));
+    applyTransform();
+  }
+  lastTouches = e.touches;
+}, { passive: false });
+document.addEventListener('touchend', () => { isDragging = false; lastTouches = null; });
+
+// ─────────────────────────────────────────────
+//  INICIO
+// ─────────────────────────────────────────────
+document.getElementById('btn-home').addEventListener('click', goHome);
+document.addEventListener('click', startBackgroundMusic, { once: true });
+document.addEventListener('touchstart', startBackgroundMusic, { once: true });
+document.addEventListener('keydown', startBackgroundMusic, { once: true });
+
+window.addEventListener('resize', () => {
+  resizeCanvas();
+  generateStars();
+  applyTransform();
+});
+
+resizeCanvas();
+generateStars();
+buildScene();
+applyTransform();
+requestAnimationFrame(ts => { lastTime = ts; animateOrbits(ts); });
+</script>
+</body>
+</html>
